@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#081321">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cruzeiro">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Cruzeiro MSC Seaview · Jan 2027</title>
+<style>
+html,body{margin:0;min-height:100%;background:#081321;color:#f2ebdd;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;box-sizing:border-box;background:radial-gradient(700px 400px at 80% -10%,rgba(207,174,110,.14),transparent 60%),#081321}
+.box{width:100%;max-width:360px;text-align:center}
+.ic{width:76px;height:76px;border-radius:20px;margin:0 auto 18px;display:block;box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 0 1px rgba(207,174,110,.35)}
+.ey{font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.18em;text-transform:uppercase;color:#cfae6e}
+h1{font:500 30px/1.1 Georgia,'Times New Roman',serif;margin:10px 0 6px}
+h1 em{color:#e6cf9c}
+p{color:#8ea2b8;font-size:14.5px;margin:0 0 22px;line-height:1.5}
+input[type=password],input[type=text]{width:100%;box-sizing:border-box;background:#0f1f33;border:1px solid rgba(207,174,110,.4);border-radius:14px;padding:15px 16px;color:#f2ebdd;font-size:17px;outline:none;text-align:center}
+input:focus{border-color:#cfae6e;box-shadow:0 0 0 3px rgba(207,174,110,.2)}
+label{display:flex;align-items:center;justify-content:center;gap:9px;margin:14px 0 18px;font-size:14px;color:#c6d1dd}
+label input{width:18px;height:18px;accent-color:#cfae6e}
+button{width:100%;border:0;border-radius:999px;padding:15px;font-weight:700;font-size:16px;background:#cfae6e;color:#1b1407;cursor:pointer}
+button:disabled{opacity:.6}
+.err{min-height:20px;margin-top:12px;font-size:14px;color:#ffb4a5}
+.show{background:none;color:#8ea2b8;font-weight:500;font-size:13px;padding:8px;width:auto;margin-top:4px}
+</style>
+</head>
+<body>
+<form class="box" id="f" autocomplete="off">
+  <img class="ic" src="icon-192.png" alt="">
+  <div class="ey">Diário de bordo · só para o grupo</div>
+  <h1>Cruzeiro <em>MSC Seaview</em></h1>
+  <p>Digite a senha do grupo. Maiúsculas e acentos não fazem diferença.</p>
+  <input id="pw" type="password" placeholder="senha" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" required>
+  <button type="button" class="show" id="sh">mostrar senha</button>
+  <label><input type="checkbox" id="rem" checked> Lembrar neste celular</label>
+  <button id="go">Entrar</button>
+  <div class="err" id="err"></div>
+</form>
+<script>
+(function(){
+  var ITER=600000, store='cz_key';
+  if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){try{navigator.serviceWorker.register('sw.js');}catch(e){}}
+  function norm(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();}
+  function b2u(b){return Uint8Array.from(atob(b),function(c){return c.charCodeAt(0);});}
+  function u2b(u){var s='';for(var i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s);}
+  var blob=null;
+  function getBlob(){ if(blob) return Promise.resolve(blob); return fetch('app.bin').then(function(r){if(!r.ok) throw new Error('net');return r.arrayBuffer();}).then(function(b){blob=new Uint8Array(b);return blob;}); }
+  function open(key){
+    return getBlob().then(function(b){
+      var salt=b.slice(4,20), iv=b.slice(20,32), ct=b.slice(32);
+      return crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct);
+    }).then(function(pt){
+      var html=new TextDecoder().decode(pt);
+      document.open(); document.write(html); document.close();
+    });
+  }
+  function keyFromPw(pw){
+    return getBlob().then(function(b){
+      var salt=b.slice(4,20);
+      return crypto.subtle.importKey('raw',new TextEncoder().encode(norm(pw)),'PBKDF2',false,['deriveKey']).then(function(base){
+        return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:ITER,hash:'SHA-256'},base,{name:'AES-GCM',length:256},true,['decrypt']);
+      });
+    });
+  }
+  var err=document.getElementById('err'), go=document.getElementById('go');
+  try{
+    var saved=localStorage.getItem(store);
+    if(saved){
+      document.getElementById('f').style.visibility='hidden';
+      crypto.subtle.importKey('raw',b2u(saved),{name:'AES-GCM'},true,['decrypt']).then(open).catch(function(){
+        try{localStorage.removeItem(store);}catch(e){}
+        document.getElementById('f').style.visibility='visible';
+      });
+    }
+  }catch(e){}
+  document.getElementById('sh').onclick=function(){var p=document.getElementById('pw');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'mostrar senha':'esconder senha';};
+  document.getElementById('f').onsubmit=function(e){
+    e.preventDefault(); err.textContent=''; go.disabled=true; go.textContent='Abrindo…';
+    var rem=document.getElementById('rem').checked, k;
+    keyFromPw(document.getElementById('pw').value).then(function(key){k=key;return open(key).then(function(){
+      if(rem) return crypto.subtle.exportKey('raw',k).then(function(raw){try{localStorage.setItem(store,u2b(new Uint8Array(raw)));}catch(e){}});
+    });}).catch(function(x){
+      go.disabled=false; go.textContent='Entrar';
+      err.textContent=(x&&x.message==='net')?'Sem conexão. Abra uma vez com internet para baixar o app.':'Senha incorreta. Tente de novo.';
+    });
+  };
+})();
+</script>
+</body>
+</html>

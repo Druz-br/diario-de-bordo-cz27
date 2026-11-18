@@ -1,6 +1,6 @@
 /* Guarda o app (criptografado) no celular para abrir sem internet.
    Para publicar uma versão nova, mude VERSION. */
-const VERSION = 'v20261118-091500';
+const VERSION = 'v20261118-104128';
 const CACHE = 'cruzeiro-' + VERSION;
 const FILES = ['./', './index.html', './app.bin', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
